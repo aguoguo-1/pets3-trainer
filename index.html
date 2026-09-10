@@ -429,6 +429,7 @@ const BIGWORDS="aal aalii aam aardvark aardwolf aba abac abaca abacate abacay ab
 BIGWORDS.split(' ').forEach(w=>DICT.add(w));
 const TYPO=new Set();
 "unhealth calender untill wether hight sence tecnology contras".split(/\s+/).forEach(w=>TYPO.add(w));
+"addictive offline database databases download downloads ecommerce takeout metro livestream esports telecommute blogger bloggers vlog vlogs podcast podcasts automation jogging broadband bluetooth logout cyberbully cyberbullying".split(/\s+/).forEach(w=>DICT.add(w));
 function lev(a,b){
   const m=a.length,n=b.length;
   const d=Array.from({length:m+1},(_,i)=>[i,...Array(n).fill(0)]);
