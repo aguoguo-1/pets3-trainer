@@ -94,6 +94,12 @@
   .bkwarn{background:#FFF7E6;border:1px solid #FFD591;border-radius:10px;
     padding:10px 14px;font-size:13px;color:#AD6800;margin-bottom:14px;line-height:1.6;}
   .bkwarn b{color:#D4380D;}
+  .lg{margin-top:10px;border-top:1px dashed var(--line,#E5E7EB);padding-top:10px;}
+  .lg-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:7px 0;border-bottom:1px solid #F1F2F4;}
+  .lg-no{font-size:11px;background:#EEF2FF;color:#4338CA;border-radius:6px;padding:2px 6px;flex:0 0 auto;}
+  .lg-t{flex:1 1 200px;font-size:12px;color:var(--gray);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lg-sel{flex:0 1 240px;font-size:12px;padding:4px 6px;border:1px solid var(--line,#E5E7EB);border-radius:6px;background:#fff;color:inherit;}
+  .lg-h{font-size:13px;font-weight:600;margin-bottom:6px;}
 </style>
 </head>
 <body data-page-node-id="fAVOEt2zZXjvx3A23AXuY2">
@@ -154,7 +160,20 @@
           <input type="file" id="bkfile" accept=".json,application/json" style="display:none;" onchange="importFile(this)">
           <button class="ghost" onclick="copyBackupLink()">复制备份链接</button>
           <button class="ghost" onclick="pasteImport()">粘贴导入</button>
+          <button class="ghost" onclick="showLegacy()">🔍 找回旧草稿</button>
+          <button class="ghost" onclick="showSnaps()">🕒 时间机器</button>
         </div>
+        <div class="lg" id="legacybox" style="display:none"></div>
+        <details class="lg">
+          <summary style="font-size:13px;font-weight:600;cursor:pointer">☁️ 云备份（GitHub Gist，换电脑 / 清缓存也能找回）</summary>
+          <div class="lg-row" style="margin-top:8px">
+            <input id="ghtok" type="password" placeholder="GitHub Token（需勾选 gist 权限）" style="flex:1 1 240px;font-size:12px;padding:5px 8px;border:1px solid var(--line,#E5E7EB);border-radius:6px;background:#fff;color:inherit">
+            <button class="ghost" onclick="ghSaveToken()">记住</button>
+            <button class="ghost" onclick="cloudBackup()">备份到云端</button>
+            <button class="ghost" onclick="cloudRestore()">从云端恢复</button>
+          </div>
+          <div class="bk-n" id="cloudstat"></div>
+        </details>
         <p class="bk-n">草稿只存在当前域名下。换链接 / 换电脑前先「导出文件」或「复制备份链接」，到新地址导入即可全部恢复。</p>
       </div>
 
@@ -180,7 +199,7 @@
         <div class="nav" data-page-node-id="gWLHnvN9zTo1c4RowWcclO">
           <button class="ghost" onclick="go(-1)" data-page-node-id="Fdkxi9KmfGbsJX5RzjdnPq">← 上一篇</button>
           <button class="ghost" onclick="go(1)" data-page-node-id="7cyvpFNYGGMj2zAgIWe4iC">下一篇 →</button>
-          <button class="ghost" onclick="today()" data-page-node-id="Lbe6wztiBUMWumg7qB2MFX">回到今日</button>
+          <button class="ghost" onclick="today(true)" data-page-node-id="Lbe6wztiBUMWumg7qB2MFX">回到今日</button>
         </div>
         <p class="hint" data-page-node-id="YZvNkA3EHd26n1nswyejXk">页面按日期自动选当日题；用"上一篇/下一篇"可自由练习全部题库。范文仅作对照，先自己写再看。</p>
       </div>
@@ -189,8 +208,10 @@
 </div>
 
 <script>
+/* 注意：id 是草稿的永久存储键。新增题目只能追加到数组末尾，禁止插到中间或开头 */
 const prompts = [
   {
+    id:'q01',
     title:"大学生每日使用智能手机时长占比",
     type:"bar", unit:"%",
     data:[{l:"<2h",v:15},{l:"2-4h",v:35},{l:"4-6h",v:30},{l:">6h",v:20}],
@@ -198,6 +219,7 @@ const prompts = [
     model:"The bar chart illustrates how much time college students spend on smartphones daily. According to the data, 35% use them for 2 to 4 hours, which is the largest group. In contrast, only 15% spend less than 2 hours, while 20% use them for over 6 hours.\n\nOverall, most students are heavy smartphone users. The main reason is that phones have become essential for study, communication and entertainment. Another factor is that many activities now take place online, making phones hard to put down.\n\nIn my opinion, overuse does more harm than good, because long screen time hurts eyesight. For example, a study shows students using phones over 6 hours often sleep poorly. Therefore, we should set a daily limit and develop healthier hobbies."
   },
   {
+    id:'q02',
     title:"市民偏好的健身方式调查",
     type:"bar", unit:"%",
     data:[{l:"跑步",v:30},{l:"瑜伽",v:20},{l:"游泳",v:15},{l:"骑行",v:20},{l:"健身房",v:15}],
@@ -205,6 +227,7 @@ const prompts = [
     model:"The chart shows people's favourite ways to keep fit. Running ranks first at 30%, followed by yoga and cycling at 20% each. Swimming and gym workouts account for 15% respectively.\n\nClearly, light and free activities are more popular. The reason is that running and cycling need little equipment and fit busy schedules. Besides, more people now care about health after the pandemic.\n\nIn my view, regular exercise is vital. For example, walking or running 30 minutes a day lowers heart disease risk. Therefore, everyone should pick a suitable activity and keep doing it."
   },
   {
+    id:'q03',
     title:"网购人群年龄分布",
     type:"bar", unit:"%",
     data:[{l:"18-25",v:25},{l:"26-35",v:40},{l:"36-45",v:20},{l:"45+",v:15}],
@@ -212,6 +235,7 @@ const prompts = [
     model:"The bar chart presents the age distribution of online shoppers. The 26–35 group takes the largest share at 40%, while the 18–25 group follows at 25%. Those aged 36–45 make up 20%, and people over 45 only 15%.\n\nThere is a clear trend that young and middle-aged adults dominate online shopping. The main reason is that they are digital natives comfortable with apps and e-payment. Another factor is their heavier family and work consumption needs.\n\nFrom my perspective, this trend is natural, but the elderly should not be ignored. For instance, simple interfaces help older users shop online. Therefore, platforms should design for all ages."
   },
   {
+    id:'q04',
     title:"某城市空气质量指数（AQI）年度变化（越低越好）",
     type:"bar", unit:"",
     data:[{l:"2019",v:120},{l:"2020",v:110},{l:"2021",v:95},{l:"2022",v:85},{l:"2023",v:78}],
@@ -219,6 +243,7 @@ const prompts = [
     model:"The chart shows the air quality index (AQI) of a city from 2019 to 2023. The AQI was 120 in 2019 and kept dropping to 78 in 2023, with the lowest point in the last year.\n\nOverall, the air quality improved steadily. The main reason is stricter emission rules and more green energy. Another factor is the rise of public transport, which cut car use.\n\nIn my opinion, the improvement is encouraging. For example, fewer smog days mean better health for citizens. Therefore, the government should keep these policies and aim higher."
   },
   {
+    id:'q05',
     title:"家庭每周点外卖次数",
     type:"bar", unit:"%",
     data:[{l:"0次",v:10},{l:"1-2次",v:45},{l:"3-4次",v:30},{l:">5次",v:15}],
@@ -226,6 +251,7 @@ const prompts = [
     model:"The bar chart illustrates how often families order takeout weekly. 45% order 1–2 times, the largest group, while 30% order 3–4 times. Only 10% never order, and 15% order over 5 times.\n\nA growing number of families rely on takeout. The reason is busy work leaves little time for cooking. Besides, delivery apps make ordering fast and cheap.\n\nI think takeout is convenient but should be limited, because too much is unhealthy. For example, high oil and salt in takeout raise health risks. Therefore, we should cook more at home."
   },
   {
+    id:'q06',
     title:"学生每日课外阅读时间",
     type:"bar", unit:"%",
     data:[{l:"<1h",v:20},{l:"1-2h",v:35},{l:"2-3h",v:25},{l:">3h",v:20}],
@@ -233,6 +259,7 @@ const prompts = [
     model:"The chart shows students' daily extracurricular reading time. 35% read 1–2 hours, the biggest group, while 25% read 2–3 hours. 20% read less than 1 hour, and another 20% read over 3 hours.\n\nGenerally, most students read at least one hour, which is positive. The reason is that reading broadens knowledge and helps exams. Another factor is schools encouraging reading habits.\n\nIn my view, reading is essential for growth. For instance, regular reading improves writing and focus. Therefore, students should keep a daily reading habit."
   },
   {
+    id:'q07',
     title:"漫画：餐桌上的“低头族”",
     type:"picture",
     desc:"画面中，一家人在吃晚饭。一个年轻人低头刷手机，父母在一旁说话，他全程没有回应。",
@@ -240,6 +267,7 @@ const prompts = [
     model:"The picture depicts a young man bowing to his phone at the dinner table, ignoring his talking parents.\n\nThis scene reflects a common problem: phones distract us from real communication. The reason is that social apps are addictive and always demand attention, pulling us away from people around us.\n\nIn my opinion, we should put phones down when with family. For example, a phone-free dinner improves relationships and conversation. Therefore, set family rules to enjoy face-to-face time."
   },
   {
+    id:'q08',
     title:"市民日常出行方式占比",
     type:"bar", unit:"%",
     data:[{l:"地铁",v:40},{l:"公交",v:25},{l:"自驾",v:20},{l:"单车",v:15}],
@@ -247,6 +275,7 @@ const prompts = [
     model:"The chart presents how citizens commute. Subway takes the largest share at 40%, followed by bus at 25%. Driving accounts for 20%, and cycling 15%.\n\nPublic transport dominates because it avoids traffic and costs less. The main reason is city investment in metro lines. Another factor is rising fuel prices that push people to transit.\n\nI think public transport should be promoted. For example, more metro lines cut both cost and pollution. Therefore, the city should expand transit and make it cleaner."
   },
   {
+    id:'q09',
     title:"家庭每月支出结构占比",
     type:"pie", unit:"%",
     data:[{l:"食品",v:30},{l:"住房",v:25},{l:"教育",v:20},{l:"交通",v:10},{l:"娱乐",v:15}],
@@ -254,6 +283,7 @@ const prompts = [
     model:"The pie chart shows the monthly spending structure of a family. Food takes the largest share at 30%, followed by housing at 25% and education at 20%. Entertainment accounts for 15%, while transport is only 10%.\n\nClearly, basic needs dominate the budget. The reason is that food and housing are unavoidable, and education weighs more as parents value schooling. Another factor is rising living costs in cities.\n\nIn my view, the structure is reasonable but entertainment should not be ignored. For example, moderate leisure reduces stress and improves efficiency. Therefore, families should balance necessities with a small fun budget."
   },
   {
+    id:'q10',
     title:"某短视频平台月活跃用户增长（单位：百万）",
     type:"line", unit:"",
     data:[{l:"2019",v:120},{l:"2020",v:210},{l:"2021",v:340},{l:"2022",v:500},{l:"2023",v:620},{l:"2024",v:680}],
@@ -261,6 +291,7 @@ const prompts = [
     model:"The line chart shows the monthly active users of a short-video app from 2019 to 2024. It rose from 120 million in 2019 to 680 million in 2024, with the fastest growth between 2019 and 2022.\n\nThere is a sharp upward trend. The main reason is cheaper smartphones and wider 4G/5G coverage. Another factor is that short videos are easy to watch and create, attracting all ages.\n\nFrom my perspective, the boom brings both fun and risk. For example, overuse harms teenagers' study and eyesight. Therefore, users should set time limits while enjoying the content."
   },
   {
+    id:'q11',
     title:"三国可再生能源发电占比对比（%）",
     type:"table",
     head:["国家","太阳能","风能","水电"],
@@ -269,6 +300,7 @@ const prompts = [
     model:"The table compares renewable energy shares in three countries. Country A relies most on hydro (30%) and wind (18%). Country B leads in solar at 25% but less wind. Country C has the highest hydro at 35% and strong wind at 22%, yet little solar.\n\nThe differences reflect resources and policy. The reason is that geography decides which source fits: sunny B favors solar, river-rich C favors hydro. Another factor is each government's investment focus.\n\nIn my opinion, clean energy is the future. For instance, more renewables cut carbon emissions and air pollution. Therefore, countries should learn from each other and build mixed sources."
   },
   {
+    id:'q12',
     title:"漫画：景区石柱上的“到此一游”",
     type:"picture",
     desc:"画面中，一名游客在名胜古迹的石柱上用小刀刻下“到此一游”四个字，旁边工作人员皱眉劝阻，其他游客拍照。",
@@ -276,6 +308,7 @@ const prompts = [
     model:"The picture shows a tourist carving 'I was here' on an ancient stone pillar, ignored by a frowning worker while others take photos.\n\nThis reflects poor civic manners and a lack of heritage respect. The reason is that some people seek attention or a souvenir without thinking of public good. Another factor is weak on-site reminders and penalties.\n\nIn my view, such behavior must stop. For example, carving damages history that belongs to everyone and may face fines. Therefore, visitors should respect sites and parks should post clear rules."
   },
   {
+    id:'q13',
     title:"居民每周运动频率",
     type:"bar", unit:"%",
     data:[{l:"几乎不",v:20},{l:"1-2次",v:40},{l:"3-4次",v:25},{l:"每天",v:15}],
@@ -283,6 +316,7 @@ const prompts = [
     model:"The bar chart shows how often residents exercise weekly. 40% exercise 1–2 times, the largest group, while 25% do 3–4 times. Only 15% exercise daily, and 20% hardly exercise at all.\n\nMost people move a little but not enough. The reason is busy work leaves little free time for sports. Besides, many prefer screens to outdoor activity after a tiring day.\n\nI think regular exercise matters. For example, three sessions a week lower the risk of obesity and stress. Therefore, people should schedule short workouts and stick to them."
   },
   {
+    id:'q14',
     title:"大学生毕业后去向",
     type:"bar", unit:"%",
     data:[{l:"就业",v:55},{l:"考研",v:25},{l:"留学",v:10},{l:"创业",v:10}],
@@ -292,10 +326,80 @@ const prompts = [
 ];
 
 let idx = 0;
-const DKEY='pets3_drafts';
+const DKEY='pets3_drafts';       // 正式草稿：{题目id: 正文}
+const LKEY='pets3_drafts_legacy';// 旧版按下标存的草稿，原样保留供人工归位
+const SKEY='pets3_snaps';        // 自动快照（时间机器）
 function ld(){try{return JSON.parse(localStorage.getItem(DKEY))||{};}catch(e){return {};}}
-function sd(o){try{localStorage.setItem(DKEY,JSON.stringify(o));}catch(e){}}
-function saveCurrent(){const d=ld();d[idx]=document.getElementById('essay').value;sd(d);}
+function pkey(i){const p=prompts[i];return (p&&p.id)?p.id:('q'+String(i+1).padStart(2,'0'));}
+/* --- 冗余存储 IndexedDB：localStorage 被浏览器清理时自动补回 --- */
+let _idb=null;
+function idbOpen(){return new Promise(function(res,rej){
+  if(_idb) return res(_idb);
+  try{
+    var rq=indexedDB.open('pets3_store',1);
+    rq.onupgradeneeded=function(e){var db=e.target.result;if(!db.objectStoreNames.contains('kv'))db.createObjectStore('kv');};
+    rq.onsuccess=function(e){_idb=e.target.result;res(_idb);};
+    rq.onerror=function(){rej(rq.error||new Error('idb'));};
+  }catch(e){rej(e);}
+});}
+function idbPut(k,v){idbOpen().then(function(db){db.transaction('kv','readwrite').objectStore('kv').put(v,k);}).catch(function(){});}
+function idbGet(k){return idbOpen().then(function(db){return new Promise(function(res,rej){
+  var rq=db.transaction('kv').objectStore('kv').get(k);
+  rq.onsuccess=function(){res(rq.result);};rq.onerror=function(){rej(rq.error);};});});}
+function idbRecover(){
+  idbGet('drafts').then(function(v){
+    if(!v||typeof v!=='object')return;
+    var cur=ld(),n=0;
+    Object.keys(v).forEach(function(k){
+      var a=String(v[k]||'').trim(),b=String(cur[k]||'').trim();
+      if(a&&a.length>b.length){cur[k]=v[k];n++;}
+    });
+    if(n>0){try{localStorage.setItem(DKEY,JSON.stringify(cur));}catch(e){}load();updateBackupStat();}
+  }).catch(function(){});
+}
+/* --- 自动快照：内容有明显变化或超过 3 分钟记一次，最多留 12 份 --- */
+function snap(o){
+  try{
+    var sn=[];try{sn=JSON.parse(localStorage.getItem(SKEY))||[];}catch(e){sn=[];}
+    var now=Date.now();
+    var flat=Object.keys(o).map(function(k){return String(o[k]||'').trim();}).filter(Boolean).join(' ');
+    var last=sn[sn.length-1];
+    if(last){
+      var lf=Object.keys(last.d||{}).map(function(k){return String(last.d[k]||'').trim();}).filter(Boolean).join(' ');
+      if(Math.abs(flat.length-lf.length)<20&&(now-last.t)<180000)return;
+    }
+    sn.push({t:now,d:o});
+    while(sn.length>12)sn.shift();
+    localStorage.setItem(SKEY,JSON.stringify(sn));
+  }catch(e){}
+}
+function sd(o){
+  try{localStorage.setItem(DKEY,JSON.stringify(o));}catch(e){}
+  try{idbPut('drafts',o);}catch(e){}
+  try{snap(o);}catch(e){}
+}
+function saveCurrent(){var d=ld();d[pkey(idx)]=document.getElementById('essay').value;sd(d);}
+/* --- 旧版（按下标存储）草稿迁移：先原样备份，再按现题号映射，冲突的留给人工归位 --- */
+function migrateLegacy(){
+  var raw=null;try{raw=localStorage.getItem(DKEY);}catch(e){}
+  var leg=null;try{leg=localStorage.getItem(LKEY);}catch(e){}
+  var src=leg||raw; if(!src)return;
+  var d=null;try{d=JSON.parse(src);}catch(e){return;}
+  if(!d||typeof d!=='object')return;
+  var nums=Object.keys(d).filter(function(k){return /^[0-9]+$/.test(k)&&String(d[k]||'').trim();});
+  if(!nums.length)return;
+  var backed=false;
+  if(!leg){try{localStorage.setItem(LKEY,src);backed=true;}catch(e){}}
+  else backed=true;
+  var cur=ld(),moved=0;
+  nums.forEach(function(k){
+    var p=prompts[Number(k)]; if(!p)return;
+    if(!cur[p.id]||!String(cur[p.id]).trim()){cur[p.id]=d[k];moved++;}
+  });
+  if(backed){ Object.keys(cur).forEach(function(k){ if(/^[0-9]+$/.test(k)) delete cur[k]; }); }
+  try{localStorage.setItem(DKEY,JSON.stringify(cur));}catch(e){}
+  if(moved>0)setTimeout(function(){try{showLegacy(true);}catch(e){}},800);
+}
 
 function renderBar(p){
   const W=620,H=260, padL=48,padR=20,padT=20,baseY=220;
@@ -395,7 +499,7 @@ function load(){
   document.getElementById('model').style.display='none';
   document.getElementById('result').style.display='none';
   const _lb=document.getElementById('ltbox'); if(_lb){_lb.style.display='none'; _lb.innerHTML='';}
-  document.getElementById('essay').value = ld()[idx] || '';
+  document.getElementById('essay').value = ld()[pkey(idx)] || '';
   updateCount();
   updateBackupStat();
 }
@@ -412,7 +516,7 @@ function revealModel(){
   const m=document.getElementById('model');
   m.style.display = m.style.display==='block'?'none':'block';
 }
-function clearEssay(){const d=ld();d[idx]='';sd(d);document.getElementById('essay').value='';updateCount();}
+function clearEssay(){const d=ld();d[pkey(idx)]='';sd(d);document.getElementById('essay').value='';updateCount();}
 
 /* ========== 拼写与语法检查（纯前端启发式） ========== */
 const DICT=new Set(("able about above accept according account achieve across act action active activity add address admit advance advantage advise affect afford afraid after again against age agent agree ahead air all allow almost alone along already also although always amazing amount analyze and anger animal answer any anyone anything appear apply approach area argue argument arise arm around art article as ask at attack attention audience author available avoid away baby back bad bag ball bank base basic be bear beat beautiful because become bed before begin behavior behind believe belong below beside best better between big bill bird bit black block blood blue board body book born both box boy branch break bring brother brown build business but buy by call camera camp can candle car care careful carry case catch cause cell center century certain chance change charge check child children choose church circle city class clear close cloud club coat code cold collect college color come common community company compare complete computer concern condition consider contain continue control cook cool copy corner correct cost count country couple course cover create cross crowd cry culture cup current cut dark data daughter day dead deal dear death decide deep degree depend describe design desire desk detail develop die different difficult dinner direction discover discuss disease dish distance do doctor dog door double down draw dream dress drink drive drop dry during each ear early earth eat edge education effect effort egg eight either electric else end energy enjoy enough enter environment equal especially even evening ever every everyone exact example except excuse exercise expect experience explain eye face fact fail fall family famous far farm fast father fear feel female few field fight figure fill film final find fine finger finish fire firm first fish fit five flat floor flow flower fly focus follow food foot for force foreign forest forget form free friend from front fruit full fun future game garden general generation get girl give glass go goal god gold good government great green ground group grow guess gun guy hair half hand happen happy hard harm health hear heart heat heavy help her here hero high him his history hit hold hole home honest hope horse hospital hot hour house how however huge human hundred husband ice idea identify if image imagine impact important in include increase indeed indicate industry information inside instead interest international interview introduce invent invest involve issue it item its job join joy judge just keep key kid kill kind king kitchen know knowledge land language large last late later laugh law lead leader learn least leave left leg less let letter level lie life light like likely line list listen little live local long look lose loss lot love low machine main major make man manage many map market marriage material matter may maybe me mean measure media medical meet member memory mention method middle might mind minute miss mission model modern money month moral more morning most mother motion move movie much music must my name nation natural nature near nearly necessary need network never new news next nice night no noise nor normal north not note nothing notice now number object occur of off offer office officer official often oil old on once one only open operate opinion opportunity option or order organization others our out outside over own owner page paint paper parent part particular party pass past path patient pattern pay peace people percent perfect perform perhaps period person personal phone physical pick picture piece place plan plant play please plenty point police policy political pool poor popular population position positive possible power practice pray prefer prepare present president pressure pretty prevent price private problem process produce product program project property protect prove provide public pull purpose push quality question quick quiet quite race radio raise random rather reach read real realize reason receive recent recognize record red reduce reflect region relate relationship remain remember remove report represent require research resource respect respond responsibility rest result return rich right ring rise risk river road rock role room rule run safe same save say school science score sea search season seat second section see seem sell send sense sentence series serious serve service set seven several sex shake share she shoot short should shoulder show side sign signal silent similar simple simply since sing single sister sit site situation six size skill skin small smile social society soldier some someone something sometimes son song soon sort sound source south space speak special specific speech speed spend sport spring square stand star start state station stay step still stop store story strategy street strong structure student study stuff style subject success successful such suddenly suffer suggest summer sun support sure surface system table take talk task teach teacher team technology television tell ten tend term test than thank that the their them themselves then theory there these they thing think third this those though thought thousand threat through throughout thus time to today together too top total touch toward town trade traditional training travel treat treatment tree trial trip trouble true trust truth try turn two type under understand unit until up upon use usual usually value various very victim view violence visit voice vote wait walk wall want war watch water way we weak wear weather week weight welcome well west what whatever when where whether which while white who whole whom whose why wide wife wild will win wind window wish with within without woman wonder word work worker world worry worse worst worth would write wrong yard yeah year yes yet you young your yourself smartphone smartphones online environment environmental pollution pollute recycle recycling teenager teenagers convenient convenience communication communications technology technological society social media platform platforms internet website websites computer computers software hardware network networks global globalization modern traditional culture cultural economic economy economics developed developing national international world wide widely person human health healthy educational student students teacher learn learning knowledge science scientific research study government policy public private company business market economy life living work worker job career money finance financial family home house community city town village country rural urban transport transportation traffic vehicle car bus train bike bicycle food diet exercise sport sports health habit healthy sleep stress pressure mental physical time schedule daily weekly monthly pollution air water noise energy power resource natural conserve protect protection environment eco environmental climate change global warming temperature weather seasonal china beijing chinese english america american europe european asia japan japanese london french germany russia india student teacher school university college class grade exam test score study learn memory practice").
@@ -740,7 +844,8 @@ function updateBackupStat(){
 }
 function exportDrafts(){
   const d=ld();
-  const data={v:1,app:'pets3-trainer',exportedAt:new Date().toISOString(),drafts:d};
+  const data={v:2,app:'pets3-trainer',exportedAt:new Date().toISOString(),
+    titles:prompts.map(function(p,j){return {id:p.id,title:p.title};}),drafts:d};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -799,6 +904,122 @@ function copyBackupLink(){
   if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(ok,fail); }
   else fail();
 }
+/* ========== 找回旧草稿 / 时间机器 ========== */
+function lgBox(){return document.getElementById('legacybox');}
+function fmtT(t){var d=new Date(Number(t));return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function esc(x){return String(x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');}
+function optList(sel){
+  return prompts.map(function(p,j){
+    return '<option value="'+j+'"'+(Number(sel)===j?' selected':'')+'>'+esc(String(p.title).slice(0,24))+'</option>';
+  }).join('');
+}
+function showLegacy(auto){
+  var box=lgBox(); if(!box) return;
+  var d={}; try{d=JSON.parse(localStorage.getItem(LKEY))||{};}catch(e){}
+  var ks=Object.keys(d).filter(function(k){return String(d[k]||'').trim();});
+  var h='<div class="lg-h">🔍 找回旧草稿</div>';
+  if(!ks.length){
+    h+='<div class="bk-n">没有检测到旧版（按题号存储）的草稿记录。当前草稿都是安全的。</div>';
+  }else{
+    h+='<div class="bk-n" style="margin:0 0 8px">检测到 <b>'+ks.length+'</b> 条旧版草稿。因题库顺序调整过，请核对它属于哪一篇，再点「放入」：</div>';
+    ks.forEach(function(k,i){
+      var t=String(d[k]).trim(), wc=t.split(/\s+/).length;
+      h+='<div class="lg-row"><span class="lg-no">旧#'+esc(k)+'</span>'
+        +'<span class="lg-t">'+esc(t.slice(0,70))+'…（'+wc+' 词）</span>'
+        +'<select class="lg-sel" id="lgs'+i+'">'+optList(Number(k))+'</select>'
+        +'<button class="ghost" onclick="legacyTo('+i+',\''+esc(k)+'\')">放入</button></div>';
+    });
+  }
+  h+='<div style="margin-top:8px"><button class="ghost" onclick="hideLg()">关闭</button>'
+    +(ks.length?' <button class="ghost" onclick="clearLegacy()">删除旧记录</button>':'')+'</div>';
+  box.style.display='block'; box.innerHTML=h;
+}
+function legacyTo(i,k){
+  var sel=document.getElementById('lgs'+i); if(!sel) return;
+  var j=Number(sel.value), p=prompts[j]; if(!p) return;
+  var d={}; try{d=JSON.parse(localStorage.getItem(LKEY))||{};}catch(e){}
+  var cur=ld(); cur[p.id]=d[k]; sd(cur);
+  delete d[k];
+  try{ if(Object.keys(d).length) localStorage.setItem(LKEY,JSON.stringify(d)); else localStorage.removeItem(LKEY); }catch(e){}
+  idx=j; load(); showLegacy();
+}
+function clearLegacy(){ if(confirm('确定删除旧版草稿记录？此操作不可撤销。')){ try{localStorage.removeItem(LKEY);}catch(e){} showLegacy(); } }
+function showSnaps(){
+  var box=lgBox(); if(!box) return;
+  var sn=[]; try{sn=JSON.parse(localStorage.getItem(SKEY))||[];}catch(e){}
+  var h='<div class="lg-h">🕒 时间机器（自动快照，最多 12 份）</div>';
+  if(!sn.length){ h+='<div class="bk-n">还没有快照。写几句话后会自动记录。</div>'; }
+  else{
+    sn.forEach(function(s2,i){
+      var ds=s2.d||{}, n=Object.keys(ds).filter(function(k){return String(ds[k]||'').trim();}).length;
+      var tot=Object.keys(ds).map(function(k){return String(ds[k]||'').trim();}).filter(Boolean).join(' ').split(/\s+/).length;
+      h+='<div class="lg-row"><span class="lg-no">'+fmtT(s2.t)+'</span>'
+        +'<span class="lg-t">'+n+' 篇 / 共 '+tot+' 词</span>'
+        +'<button class="ghost" onclick="snapTo('+i+')">恢复到这一版</button></div>';
+    });
+  }
+  h+='<div style="margin-top:8px"><button class="ghost" onclick="hideLg()">关闭</button>'
+    +(sn.length?' <button class="ghost" onclick="clearSnaps()">清空快照</button>':'')+'</div>';
+  box.style.display='block'; box.innerHTML=h;
+}
+function snapTo(i){
+  var sn=[]; try{sn=JSON.parse(localStorage.getItem(SKEY))||[];}catch(e){}
+  if(!sn[i]) return;
+  if(!confirm('用该快照覆盖当前全部草稿？当前内容会被替换。')) return;
+  var cur=ld(); var d=sn[i].d||{};
+  Object.keys(d).forEach(function(k){cur[k]=d[k];});
+  sd(cur); load(); showSnaps();
+}
+function clearSnaps(){ if(confirm('清空全部自动快照？')){ try{localStorage.removeItem(SKEY);}catch(e){} showSnaps(); } }
+function hideLg(){ var b=lgBox(); if(b){b.style.display='none';b.innerHTML='';} }
+
+/* ========== 云备份（GitHub Gist） ========== */
+const GKEY='pets3_gh_token', GID='pets3_gist_id';
+function ghTokEl(){return document.getElementById('ghtok');}
+function ghToken(){const e=ghTokEl();const v=e?e.value.trim():'';return v||(localStorage.getItem(GKEY)||'');}
+function ghSaveToken(){const e=ghTokEl();if(!e||!e.value.trim())return;localStorage.setItem(GKEY,e.value.trim());updateCloudStat('Token 已保存在本机浏览器，下次自动填入。');}
+function updateCloudStat(msg){
+  const el=document.getElementById('cloudstat'); if(!el) return;
+  const id=localStorage.getItem(GID);
+  let t=(id?'已绑定云端备份（Gist: '+id.slice(0,8)+'…）':'尚未绑定云端备份')+'　草稿 '+draftCount()+' 篇';
+  if(msg) t+='<br>'+msg;
+  el.innerHTML=t;
+}
+function packDrafts(){return JSON.stringify({v:2,app:'pets3-trainer',exportedAt:new Date().toISOString(),
+  titles:prompts.map(function(p){return {id:p.id,title:p.title};}),drafts:ld()});}
+function ghReq(url,opt){
+  const tk=ghToken();
+  if(!tk){alert('请先填入 GitHub Token（创建时勾选 gist 权限）');return Promise.reject(new Error('no token'));}
+  const o=opt||{};
+  o.headers=Object.assign({'Authorization':'token '+tk,'Accept':'application/vnd.github+json','Content-Type':'application/json'},o.headers||{});
+  return fetch(url,o).then(function(r){return r.json().then(function(j){return {ok:r.ok,status:r.status,j:j};});});
+}
+function cloudBackup(){
+  const body={description:'pets3-trainer 草稿备份',public:false,files:{'pets3-drafts.json':{content:packDrafts()}}};
+  const id=localStorage.getItem(GID);
+  const url=id?('https://api.github.com/gists/'+id):'https://api.github.com/gists';
+  ghReq(url,{method:id?'PATCH':'POST',body:JSON.stringify(body)}).then(function(r){
+    if(!r.ok){updateCloudStat('❌ 备份失败（'+(r.status===401?'Token 无效或过期':r.status===403?'Token 缺少 gist 权限':r.status)+'）。');return;}
+    localStorage.setItem(GID,r.j.id); localStorage.setItem(GKEY,ghToken());
+    try{localStorage.setItem(BKEY,String(Date.now()));updateBackupStat();}catch(e){}
+    updateCloudStat('✅ 已备份到云端（'+new Date().toLocaleString('zh-CN')+'）。这个 Gist 地址可收藏：'+r.j.html_url);
+  }).catch(function(e){ if(e&&e.message!=='no token') updateCloudStat('❌ 备份失败：'+e.message); });
+}
+function cloudRestore(){
+  const id=localStorage.getItem(GID);
+  if(!id){alert('还没有云端备份。请先点「备份到云端」。');return;}
+  ghReq(id?('https://api.github.com/gists/'+id):'',{}).then(function(r){
+    if(!r.ok){updateCloudStat('❌ 读取失败（'+r.status+'）。');return;}
+    const f=r.j.files&&r.j.files['pets3-drafts.json'];
+    if(!f){updateCloudStat('❌ 云端没有找到备份文件。');return;}
+    let o=null; try{o=JSON.parse(f.content);}catch(e){updateCloudStat('❌ 云端内容解析失败。');return;}
+    const d=(o&&o.drafts)?o.drafts:o;
+    if(!d||typeof d!=='object'){updateCloudStat('❌ 云端内容格式不对。');return;}
+    if(!confirm('用云端备份覆盖/合并本地草稿？'))return;
+    mergeDrafts(d,'overwrite'); updateCloudStat('✅ 已从云端恢复。');
+  }).catch(function(e){ if(e&&e.message!=='no token') updateCloudStat('❌ 读取失败：'+e.message); });
+}
+
 function tryRestoreFromHash(){
   const m=location.hash.match(/[#&]d=([^&]+)/);
   if(!m) return;
@@ -811,9 +1032,9 @@ function tryRestoreFromHash(){
   }catch(e){}
 }
 
-function go(d){ const d1=ld(); d1[idx]=document.getElementById('essay').value; sd(d1); idx=(idx+d+prompts.length)%prompts.length; load(); }
-function today(){
-  const d1=ld(); d1[idx]=document.getElementById('essay').value; sd(d1);
+function go(d){ const d1=ld(); d1[pkey(idx)]=document.getElementById('essay').value; sd(d1); idx=(idx+d+prompts.length)%prompts.length; load(); }
+function today(doSave){
+  if(doSave){ const d1=ld(); d1[pkey(idx)]=document.getElementById('essay').value; sd(d1); }
   const doy=Math.floor((Date.now()-new Date(new Date().getFullYear(),0,0))/86400000);
   idx=doy%prompts.length; load();
 }
@@ -825,7 +1046,10 @@ document.getElementById('date').textContent=
   now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日';
 ltRestore();
 tryRestoreFromHash();
-today();
+migrateLegacy();
+idbRecover();
+today(false);
+(function(){const e=ghTokEl();if(e){const t=localStorage.getItem(GKEY);if(t)e.value=t;}updateCloudStat('');})();
 </script>
 </body>
 </html>
