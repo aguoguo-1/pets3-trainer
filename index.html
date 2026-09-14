@@ -626,9 +626,15 @@ function checkGrammar(text){
     issues.push('「'+t+'」百分比后接名词通常需加 of（应为 '+t.replace(/^(\d+%)\s+/,'$1 of ')+'）');
   });
   // 2) choose/want/plan/decide/hope 等后缺 to：choose enter → choose to enter
-  const toVb=/(choose|chooses|chose|want|wants|plan|plans|planned|decide|decides|decided|hope|hopes|expect|expects|need|needs|try|tries|afford|agree|agrees|promise|promises|refuse|refuses)\s+(?!to\b|not\b|a\b|an\b|the\b|some\b|any\b|more\b|most\b|which\b|what\b|how\b|when\b|where\b|whether\b|it\b|them\b|this\b|that\b|their\b|his\b|her\b|my\b|our\b|your\b|different\b|another\b|other\b)([a-z]+)/gi;
+  const toVb=/(choose|chooses|chose|want|wants|plan|plans|planned|decide|decides|decided|hope|hopes|expect|expects|need|needs|try|tries|afford|agree|agrees|promise|promises|refuse|refuses)\s+(?!to\b|not\b|a\b|an\b|the\b|some\b|any\b|more\b|most\b|which\b|what\b|how\b|when\b|where\b|whether\b|it\b|them\b|this\b|that\b|their\b|his\b|her\b|my\b|our\b|your\b|different\b|another\b|other\b|these\b|those\b|all\b|both\b|each\b|every\b|no\b|its\b|such\b|several\b|many\b|much\b|few\b|less\b|least\b|public\b|private\b|online\b)([a-z]+(?:-[a-z]+)*)/gi;
+  // 后接名词/动名词是正确用法（choose buses / choose cycling / choose self-driving），只在接动词原形时提示
+  const VB_BASE=/^(be|is|am|are|go|get|got|make|take|do|have|has|had|improve|build|leave|study|work|live|buy|find|learn|use|develop|reduce|increase|protect|save|spend|travel|avoid|change|come|drive|give|help|keep|know|pay|play|see|show|start|stop|talk|tell|think|turn|visit|wait|watch|win|solve|create|provide|support|boost|promote|achieve|attend|join|cut|eat|read|write|speak|enter|offer|consider|remember|discover|cover|deliver|suffer|prefer|wander|order|answer|master|enter|borrow|follow|allow|enjoy|apply|reply|supply|carry|hurry|worry|marry|study|copy|try|cry|buy|lie|die|tie|agree|refuse|choose|decide|plan|want|hope|expect|need)$/;
+  const NOUN_TAIL=/(s|ss|us|is|ing|ed|tion|sion|ment|ness|ity|age|ance|ence|ship|ism|ist|er|or|th|ce|ty|al|ure|dom|hood|ly)$/;
   let mt;
   while((mt=toVb.exec(text))!==null){
+    const w=mt[2];
+    if(w.indexOf('-')>=0) continue;            // self-driving 等复合词
+    if(!VB_BASE.test(w) && NOUN_TAIL.test(w)) continue;  // 名词/动名词：buses、cycling、improvement
     issues.push('「'+mt[1]+' '+mt[2]+'」该动词后应接 to do（应为 '+mt[1]+' to '+mt[2]+'）');
   }
   // 3) different + 单数名词 + are/were：different choice are → different choices are
@@ -689,10 +695,12 @@ function grade(){
   // ---- ③ 分析段（3 分）----
   const trendK=['overall','trend','increase','increased','decrease','decreased','rise','rose','fall','drop','grow','growing','more','most','main reason','reason','reasons','factor','because','due to','as a result','lead to'];
   const trendHit=trendK.filter(w=>low.includes(w)).length;
+  const reasonHit=(low.match(/(for one thing|for another|firstly|secondly|first of all|one reason|another reason|the main reason|one factor|another factor|this is why|owing to|thanks to|account for|attribute)/g)||[]).length;
+  const anaScore=trendHit+reasonHit;
   let ana, anaMsg;
-  if(trendHit>=3){ana=3; anaMsg='归纳了趋势并给出原因，分析充分';}
-  else if(trendHit===2){ana=2; anaMsg='有分析，建议再加"主因+另一因素"两句更饱满';}
-  else if(trendHit===1){ana=1; anaMsg='分析单薄，应写总趋势 + 1–2 个原因';}
+  if(anaScore>=4){ana=3; anaMsg='归纳总趋势并展开 1–2 个原因，分析充分';}
+  else if(anaScore>=2){ana=2; anaMsg='原因分析到位，建议段首再加一句总趋势（Overall, ... dominates ...）更完整';}
+  else if(anaScore===1){ana=1; anaMsg='分析单薄：需一句总趋势 + 1–2 个原因（For one thing ... For another ...）';}
   else {ana=0; anaMsg='缺少分析段，需归纳趋势并解释原因';}
 
   // ---- ④ 评论/论证（4 分，新版重点：观点+证据）----
