@@ -533,6 +533,7 @@ const BIGWORDS="aal aalii aam aardvark aardwolf aba abac abaca abacate abacay ab
 BIGWORDS.split(' ').forEach(w=>DICT.add(w));
 const TYPO=new Set();
 "unhealth calender untill wether hight sence tecnology contras".split(/\s+/).forEach(w=>TYPO.add(w));
+"entertainment entertainments expenditure expenditures category categories budgets deserves reflects ranks accounts factors standards commute commuting allocate allocation affordability inequality affordable".split(/\s+/).forEach(w=>DICT.add(w));
 "addictive offline database databases download downloads ecommerce takeout metro livestream esports telecommute blogger bloggers vlog vlogs podcast podcasts automation jogging broadband bluetooth logout cyberbully cyberbullying".split(/\s+/).forEach(w=>DICT.add(w));
 function lev(a,b){
   const m=a.length,n=b.length;
@@ -637,6 +638,26 @@ function checkGrammar(text){
     if(!VB_BASE.test(w) && NOUN_TAIL.test(w)) continue;  // 名词/动名词：buses、cycling、improvement
     issues.push('「'+mt[1]+' '+mt[2]+'」该动词后应接 to do（应为 '+mt[1]+' to '+mt[2]+'）');
   }
+  // 2b) 观点短语后用句号断开：In my perspective. This ... → 应用逗号
+  const viewDot=/(in my opinion|in my view|from my perspective|in my perspective|as far as i am concerned|as far as i'm concerned|personally)\s*\.\s+[a-z]/gi;
+  let vd;
+  while((vd=viewDot.exec(text))!==null){
+    issues.push('「'+vd[1]+'. 」观点短语后应用逗号连接主句（如 '+vd[1]+', this phenomenon ...），不能拆成两句');
+  }
+  // 2c) 逗号直接拼接两个谓语：accounts for 30%, ranks first → ranking first / which ranks first
+  const runOn=/\b(accounts?|takes?|occupies|represents?|ranks?|makes?|shows?)\b[^.!?;]{0,60},\s*(ranks?|accounts?|takes?|occupies|represents?|makes?|shows?)\b/gi;
+  let ro;
+  while((ro=runOn.exec(text))!==null){
+    issues.push('「'+ro[0]+'」逗号不能直接拼接两个谓语，建议改为 '+ro[2].replace(/s$/,'')+'ing ... 或 which '+ro[2]+' ...');
+  }
+  // 2d) For one thing ... For another thing → For another
+  if(/\bfor another thing\b/i.test(text)){
+    issues.push('「For another thing」与 For one thing 搭配时应写作 For another');
+  }
+  // 2e) In my perspective → From my perspective
+  if(/\bin my perspective\b/i.test(text)){
+    issues.push('「in my perspective」介词搭配错误，应为 From my perspective（或 In my view）');
+  }
   // 3) different + 单数名词 + are/were：different choice are → different choices are
   const diffSg=low.match(/\bdifferent\s+([a-z]+)\s+(are|were)\b/g);
   if(diffSg) diffSg.forEach(s=>{
@@ -704,8 +725,13 @@ function grade(){
   else {ana=0; anaMsg='缺少分析段，需归纳趋势并解释原因';}
 
   // ---- ④ 评论/论证（4 分，新版重点：观点+证据）----
-  const hasView=/(in my opinion|from my perspective|as far as i|i think|i believe|i hold|in my view|my view|from my point)/.test(low);
-  const hasProof=/(for example|for instance|such as|statistics|study|studies|research|survey|a case in point|report|according to a)/.test(low);
+  const hasView=/(in my opinion|my perspective|as far as i|i think|i believe|i hold|in my view|my view|from my point|personally|as for me|i would argue|it seems to me)/.test(low);
+  // 证据只在「观点句之后」的评论段里找，并剔除第一段套话 According to the statistics/chart...
+  let proofBody=String(text);
+  const vi=proofBody.search(/(in my opinion|my perspective|in my view|as far as i|i think|i believe|personally|as for me)/i);
+  if(vi>=0) proofBody=proofBody.slice(vi);
+  proofBody=proofBody.toLowerCase().replace(/according to the (chart|statistics|data|figures|table|graph|pie chart|bar chart|survey|report)\b/g,'');
+  const hasProof=/(for example|for instance|such as|statistics|study|studies|research|survey|a case in point|report|according to a|take .{0,30} as an example)/.test(proofBody);
   let com, comMsg;
   if(hasView && hasProof){com=4; comMsg='观点明确且有证据/例子，符合新版"观点+证据"要求';}
   else if(hasView){com=2; comMsg='亮了观点但缺证据/例子，新版必考"观点+证据"，请补 For example...';}
